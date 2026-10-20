@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Http\Controllers\Api\V1\PublicBrandController;
 use App\Http\Controllers\Api\V1\PublicCategoryController;
 use App\Http\Controllers\Api\V1\PublicProductController;
 use App\Models\Product;
@@ -110,15 +111,28 @@ if (preg_match('~^/shop/([^/]+)/?$~', $path, $matches)) {
     }
     $selected = collect($categories)->firstWhere('slug', $request->query('category'));
     if ($cleanPath === '/shop') {
-        $noindex = $noindex || count(array_diff(array_keys($filters), ['category', 'brand', 'on_sale', 'page'])) > 0 || collect($filters)->contains(fn ($value): bool => is_string($value) && str_contains($value, '|'));
-        if ($selected) {
-            $title = $heading = $selected['name'];
+        $brands = app(PublicBrandController::class)->index()->getData(true)['data'];
+        $selectedBrand = collect($brands)->firstWhere('slug', $request->query('brand'));
+        $groups = array_filter(array_intersect_key($filters, array_flip(['category', 'brand', 'disease', 'use', 'type', 'on_sale'])), fn ($value): bool => $value !== null && $value !== '');
+        $noindex = $noindex || count($groups) > 1
+            || count(array_diff(array_keys($filters), ['category', 'brand', 'on_sale', 'page', 'sort'])) > 0
+            || (isset($filters['sort']) && $filters['sort'] !== 'latest')
+            || (isset($filters['category']) && ! $selected)
+            || (isset($filters['brand']) && ! $selectedBrand)
+            || collect($filters)->contains(fn ($value): bool => is_string($value) && str_contains($value, '|'));
+        if ($selected || $selectedBrand) {
+            $title = $heading = $selected['name'] ?? $selectedBrand['name'];
             $summary = description('Browse '.$title.' at Q Care Pharmacy. Compare pack details, prices and availability, and order for delivery across Pakistan.');
+        } elseif (($filters['on_sale'] ?? null) === '1') {
+            $title = $heading = 'Pharmacy Offers';
+        }
+        if (isset($filters['q']) && is_string($filters['q'])) {
+            $title = 'Search results for '.mb_substr($filters['q'], 0, 60);
         }
         $params = [];
         if (! $noindex) {
             foreach (['category', 'brand', 'on_sale', 'page'] as $key) {
-                if (isset($filters[$key])) {
+                if (isset($filters[$key]) && ($key !== 'page' || (int) $filters[$key] > 1)) {
                     $params[$key] = $filters[$key];
                 }
             }
