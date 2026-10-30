@@ -69,7 +69,7 @@ $cleanPath = rtrim($path, '/') ?: '/';
 $privatePage = (bool) preg_match('~^/(?:admin|account|cart|checkout|wishlist|login|register)(?:/|$)~', $path);
 [$title, $summary, $heading] = $pages[$cleanPath] ?? ($privatePage ? ['Your Account', 'Manage your Q Care Pharmacy account and orders.', 'Your account'] : ['Page Not Found', 'This page could not be found at Q Care Pharmacy.', 'Page not found']);
 $canonical = $origin.$cleanPath;
-$noindex = $privatePage;
+$noindex = $privatePage || (bool) config('storefront.admin_only');
 $body = '';
 $schema = null;
 $image = null;
@@ -172,6 +172,7 @@ header('X-Content-Type-Options: nosniff');
 <!doctype html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<?php if (config('storefront.admin_only')) { ?><meta name="qcare-admin-only" content="1"><?php } ?>
 <title><?= escape($title.' | '.$siteName) ?></title>
 <meta name="description" content="<?= escape($summary) ?>">
 <meta name="robots" content="<?= $noindex ? 'noindex, follow' : 'index, follow' ?>">
